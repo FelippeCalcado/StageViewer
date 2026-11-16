@@ -1,0 +1,745 @@
+
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Visualizador de Fases</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+        .toolbar {
+            display: flex;
+            align-items: center;
+            background-color: #2d2d30;
+            padding: 8px 12px;
+            border-bottom: 1px solid #3e3e42;
+            gap: 8px;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background-color: #3a3d41;
+            color: #f0f0f0;
+            border: 1px solid #4e5257;
+            padding: 6px 11px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.15s;
+        }
+        .btn:hover:not(:disabled) {
+            background-color: #4a4e54;
+        }
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .btn-primary {
+            background-color: #007acc;
+            border-color: #007acc;
+            color: white;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background-color: #005f9e;
+        }
+        .btn.active-tool {
+            background-color: #d97706;
+            border-color: #f59e0b;
+            color: #fff;
+        }
+        .separator {
+            width: 1px;
+            height: 22px;
+            background-color: #4e5257;
+            margin: 0 2px;
+        }
+        .path-box {
+            flex-grow: 1;
+            min-width: 140px;
+            background-color: #1e1e1e;
+            border: 1px solid #3e3e42;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            color: #cccccc;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .batch-control {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #cccccc;
+        }
+        .batch-input {
+            width: 54px;
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border: 1px solid #4e5257;
+            border-radius: 3px;
+            padding: 4px 6px;
+            font-size: 12px;
+            text-align: center;
+        }
+        .batch-input:focus {
+            outline: none;
+            border-color: #007acc;
+        }
+        .batch-info {
+            font-size: 12px;
+            color: #9cdcfe;
+            min-width: 82px;
+            text-align: center;
+        }
+        .zoom-indicator {
+            font-size: 12px;
+            color: #aaa;
+            min-width: 48px;
+            text-align: right;
+        }
+        /* Container da Barra de Abas + Setas de Navegação */
+        .tabs-container {
+            display: flex;
+            align-items: stretch;
+            background-color: #252526;
+            border-bottom: 1px solid #3e3e42;
+            flex-shrink: 0;
+            width: 100%;
+        }
+        .tab-nav-btn {
+            background-color: #2d2d30;
+            color: #cccccc;
+            border: none;
+            border-right: 1px solid #3e3e42;
+            padding: 0 12px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.15s, color 0.15s;
+        }
+        .tab-nav-btn:hover:not(:disabled) {
+            background-color: #3e3e42;
+            color: #ffffff;
+        }
+        .tab-nav-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+        .tabs-bar {
+            display: flex;
+            flex-grow: 1;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+        }
+        .tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            border-right: 1px solid #3e3e42;
+            background-color: #2d2d2d;
+            color: #969696;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: background 0.15s;
+        }
+        .tab:hover {
+            background-color: #383838;
+            color: #ffffff;
+        }
+        .tab.active {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border-top: 2px solid #007acc;
+            font-weight: 600;
+        }
+        .tab.tab-all {
+            background-color: #263238;
+            color: #80cbc4;
+        }
+        .tab.tab-all.active {
+            background-color: #1e1e1e;
+            color: #4db6ac;
+            border-top: 2px solid #4db6ac;
+        }
+        .viewer-area {
+            flex-grow: 1;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #181818;
+        }
+        .viewport {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+        }
+        .viewport:active {
+            cursor: grabbing;
+        }
+        .viewport.window-mode {
+            cursor: crosshair;
+        }
+        .viewport img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            pointer-events: none;
+            image-rendering: auto;
+        }
+        .selection-box {
+            position: absolute;
+            border: 1.5px dashed #00a8ff;
+            background-color: rgba(0, 168, 255, 0.2);
+            pointer-events: none;
+            display: none;
+            z-index: 10;
+        }
+        .grid-view {
+            display: grid;
+            width: 100%;
+            height: 100%;
+            gap: 8px;
+            padding: 8px;
+        }
+        .grid-item {
+            position: relative;
+            background-color: #252526;
+            border: 1px solid #333;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 4px;
+            cursor: pointer;
+            transition: border-color 0.15s, background-color 0.15s;
+        }
+        .grid-item:hover {
+            border-color: #007acc;
+            background-color: #2d2d30;
+        }
+        .grid-item img {
+            width: 100%;
+            height: calc(100% - 20px);
+            object-fit: contain;
+            pointer-events: none;
+        }
+        .grid-label {
+            height: 18px;
+            font-size: 11px;
+            color: #cccccc;
+            text-align: center;
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 2px;
+            pointer-events: none;
+        }
+        .empty-state {
+            color: #888;
+            font-size: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="toolbar">
+        <button class="btn btn-primary" id="btn-folder">📁 Pasta</button>
+        <button class="btn" id="btn-refresh" title="Recarregar imagens da pasta" disabled>🔄 Atualizar</button>
+        <div class="path-box" id="path-display">Nenhuma pasta selecionada...</div>
+
+        <div class="separator"></div>
+
+        <div class="batch-control">
+            <label for="input-limite" title="Quantidade máxima de imagens carregadas por vez">Lote:</label>
+            <input type="number" id="input-limite" class="batch-input" value="10" min="1" max="500">
+            <button class="btn" id="btn-prev-batch" title="Carregar lote anterior de imagens (vai para o final no início)" disabled>⏮ Anteriores</button>
+            <button class="btn" id="btn-next-batch" title="Carregar próximo lote de imagens (volta ao início no final)" disabled>Próximas ⏭</button>
+            <span class="batch-info" id="batch-info">0–0 de 0</span>
+        </div>
+
+        <div class="separator"></div>
+
+        <button class="btn zoom-ctrl" id="btn-zoom-in" title="Aproximar (Scroll Up)" disabled>➕ Zoom In</button>
+        <button class="btn zoom-ctrl" id="btn-zoom-out" title="Afastar (Scroll Down)" disabled>➖ Zoom Out</button>
+        <button class="btn zoom-ctrl" id="btn-window" title="Arraste um retângulo na imagem para dar zoom" disabled>⬚ Window</button>
+        <button class="btn zoom-ctrl" id="btn-extent" title="Ajustar imagem à janela" disabled>⛶ Extent</button>
+        <span class="zoom-indicator" id="zoom-indicator">100%</span>
+    </div>
+
+    <div class="tabs-container">
+        <button class="tab-nav-btn" id="btn-tab-prev" title="Aba anterior" disabled>◀</button>
+        <button class="tab-nav-btn" id="btn-tab-next" title="Próxima aba" disabled>▶</button>
+        <div class="tabs-bar" id="tabs-bar"></div>
+    </div>
+
+    <div class="viewer-area" id="viewer-area">
+        <div class="empty-state">Clique em "Pasta" para selecionar o diretório das imagens.</div>
+    </div>
+
+    <script>
+        let imagensCarregadas = [];
+        let abaAtiva = 0;
+
+        let scale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        let imgNaturalW = 0;
+        let imgNaturalH = 0;
+
+        let isPanning = false;
+        let isWindowZooming = false;
+        let modoWindowAtivo = false;
+        let startX = 0;
+        let startY = 0;
+
+        async function abrirPasta() {
+            try {
+                if (!window.pywebview || !window.pywebview.api) {
+                    alert("Aguardando inicialização da API Python. Tente novamente.");
+                    return;
+                }
+                const limite = parseInt(document.getElementById('input-limite').value) || 10;
+                const dados = await window.pywebview.api.selecionar_pasta(limite);
+                if (!dados) return;
+                processarDados(dados, true);
+            } catch (err) {
+                alert("Erro ao selecionar pasta: " + err);
+            }
+        }
+
+        async function atualizarManual() {
+            const dados = await window.pywebview.api.atualizar_manual();
+            if (!dados) return;
+            processarDados(dados, false);
+        }
+
+        async function alterarLimite() {
+            const input = document.getElementById('input-limite');
+            let val = parseInt(input.value);
+            if (isNaN(val) || val < 1) {
+                val = 10;
+                input.value = 10;
+            }
+            const dados = await window.pywebview.api.alterar_limite(val);
+            if (!dados) return;
+            processarDados(dados, true);
+        }
+
+        async function voltarLote() {
+            const dados = await window.pywebview.api.voltar_lote();
+            if (!dados) return;
+            processarDados(dados, true);
+        }
+
+        async function avancarLote() {
+            const dados = await window.pywebview.api.avancar_lote();
+            if (!dados) return;
+            processarDados(dados, true);
+        }
+
+        async function recarregarAutomaticamente() {
+            const dados = await window.pywebview.api.carregar_imagens();
+            if (!dados) return;
+            processarDados(dados, false);
+        }
+
+        function processarDados(dados, resetarAba) {
+            if (dados.erro) {
+                alert("Erro ao ler pasta: " + dados.erro);
+                return;
+            }
+
+            document.getElementById('path-display').textContent = dados.pasta;
+            document.getElementById('btn-refresh').disabled = false;
+            document.getElementById('batch-info').textContent = `${dados.inicio}–${dados.fim} de ${dados.total}`;
+
+            const semPaginacao = dados.total <= dados.imagens.length;
+            document.getElementById('btn-prev-batch').disabled = semPaginacao;
+            document.getElementById('btn-next-batch').disabled = semPaginacao;
+
+            imagensCarregadas = dados.imagens;
+
+            if (imagensCarregadas.length === 0) {
+                document.getElementById('tabs-bar').innerHTML = '';
+                document.getElementById('viewer-area').innerHTML =
+                    '<div class="empty-state">Nenhuma imagem JPG ou PNG encontrada nesta pasta.</div>';
+                atualizarEstadoBotoesZoom(false);
+                atualizarBotoesNavegacaoAbas();
+                return;
+            }
+
+            construirAbas();
+
+            if (resetarAba || abaAtiva > imagensCarregadas.length) {
+                selecionarAba(0, true);
+            } else {
+                selecionarAba(abaAtiva, false);
+            }
+        }
+
+        function construirAbas() {
+            const tabsBar = document.getElementById('tabs-bar');
+            tabsBar.innerHTML = '';
+
+            const tabAll = document.createElement('div');
+            tabAll.className = 'tab tab-all';
+            tabAll.textContent = `Todas do Lote (${imagensCarregadas.length})`;
+            tabAll.addEventListener('click', () => selecionarAba(0, true));
+            tabsBar.appendChild(tabAll);
+
+            imagensCarregadas.forEach((img, index) => {
+                const tab = document.createElement('div');
+                tab.className = 'tab';
+                tab.textContent = img.nome;
+                tab.addEventListener('click', () => selecionarAba(index + 1, true));
+                tabsBar.appendChild(tab);
+            });
+        }
+
+        function atualizarBotoesNavegacaoAbas() {
+            const btnPrev = document.getElementById('btn-tab-prev');
+            const btnNext = document.getElementById('btn-tab-next');
+
+            if (imagensCarregadas.length === 0) {
+                btnPrev.disabled = true;
+                btnNext.disabled = true;
+                return;
+            }
+
+            btnPrev.disabled = abaAtiva <= 0;
+            btnNext.disabled = abaAtiva >= imagensCarregadas.length;
+        }
+
+        function centralizarAbaNaBarra(tabElement) {
+            const tabsBar = document.getElementById('tabs-bar');
+            if (!tabsBar || !tabElement) return;
+
+            // Posição do centro da aba ativa em relação ao conteúdo total da barra
+            const tabCenter = tabElement.offsetLeft + (tabElement.offsetWidth / 2);
+            const barCenter = tabsBar.clientWidth / 2;
+
+            // O navegador limita automaticamente scrollLeft entre 0 e (scrollWidth - clientWidth),
+            // mantendo as primeiras e últimas abas encostadas nas extremidades sem gaps.
+            tabsBar.scrollTo({
+                left: tabCenter - barCenter,
+                behavior: 'smooth'
+            });
+        }
+
+        function irParaAbaAnterior() {
+            if (imagensCarregadas.length === 0) return;
+            if (abaAtiva > 0) {
+                selecionarAba(abaAtiva - 1, true);
+            }
+        }
+
+        function irParaProximaAba() {
+            if (imagensCarregadas.length === 0) return;
+            if (abaAtiva < imagensCarregadas.length) {
+                selecionarAba(abaAtiva + 1, true);
+            }
+        }
+
+        function atualizarEstadoBotoesZoom(habilitar) {
+            document.querySelectorAll('.zoom-ctrl').forEach(btn => {
+                btn.disabled = !habilitar;
+            });
+            if (!habilitar) {
+                modoWindowAtivo = false;
+                document.getElementById('btn-window').classList.remove('active-tool');
+                document.getElementById('zoom-indicator').textContent = '-';
+            }
+        }
+
+        function selecionarAba(index, resetarCamera) {
+            abaAtiva = index;
+            const tabs = document.querySelectorAll('.tab');
+            let tabSelecionada = null;
+
+            tabs.forEach((t, i) => {
+                const isSelected = i === index;
+                t.classList.toggle('active', isSelected);
+                if (isSelected) tabSelecionada = t;
+            });
+
+            atualizarBotoesNavegacaoAbas();
+            centralizarAbaNaBarra(tabSelecionada);
+
+            const viewer = document.getElementById('viewer-area');
+            viewer.innerHTML = '';
+
+            if (index === 0) {
+                atualizarEstadoBotoesZoom(false);
+
+                const total = imagensCarregadas.length;
+                const cols = Math.ceil(Math.sqrt(total));
+                const rows = Math.ceil(total / cols);
+
+                const grid = document.createElement('div');
+                grid.className = 'grid-view';
+                grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+                grid.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
+
+                imagensCarregadas.forEach((item, imgIndex) => {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-item';
+                    cell.title = `Clique para abrir "${item.nome}"`;
+                    cell.addEventListener('click', () => selecionarAba(imgIndex + 1, true));
+
+                    const img = document.createElement('img');
+                    img.src = item.src;
+
+                    const label = document.createElement('div');
+                    label.className = 'grid-label';
+                    label.textContent = item.nome;
+
+                    cell.appendChild(img);
+                    cell.appendChild(label);
+                    grid.appendChild(cell);
+                });
+
+                viewer.appendChild(grid);
+            } else {
+                const imgData = imagensCarregadas[index - 1];
+                atualizarEstadoBotoesZoom(true);
+
+                const viewport = document.createElement('div');
+                viewport.className = 'viewport';
+                viewport.id = 'viewport';
+                if (modoWindowAtivo) viewport.classList.add('window-mode');
+
+                const img = document.createElement('img');
+                img.id = 'active-img';
+                img.src = imgData.src;
+
+                const selBox = document.createElement('div');
+                selBox.className = 'selection-box';
+                selBox.id = 'selection-box';
+
+                viewport.appendChild(img);
+                viewport.appendChild(selBox);
+                viewer.appendChild(viewport);
+
+                img.onload = () => {
+                    imgNaturalW = img.naturalWidth;
+                    imgNaturalH = img.naturalHeight;
+                    if (resetarCamera) {
+                        zoomExtent();
+                    } else {
+                        atualizarTransformacao();
+                    }
+                };
+
+                configurarEventosViewport(viewport);
+            }
+        }
+
+        function atualizarTransformacao() {
+            const img = document.getElementById('active-img');
+            if (!img) return;
+            img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+            document.getElementById('zoom-indicator').textContent = `${Math.round(scale * 100)}%`;
+        }
+
+        function zoomExtent() {
+            const viewport = document.getElementById('viewport');
+            if (!viewport || !imgNaturalW || !imgNaturalH) return;
+
+            const vw = viewport.clientWidth;
+            const vh = viewport.clientHeight;
+            const padding = 20;
+
+            const scaleX = (vw - padding) / imgNaturalW;
+            const scaleY = (vh - padding) / imgNaturalH;
+            scale = Math.min(scaleX, scaleY);
+
+            translateX = (vw - imgNaturalW * scale) / 2;
+            translateY = (vh - imgNaturalH * scale) / 2;
+
+            atualizarTransformacao();
+        }
+
+        function aplicarZoomFator(fator, centroX = null, centroY = null) {
+            const viewport = document.getElementById('viewport');
+            if (!viewport) return;
+
+            if (centroX === null || centroY === null) {
+                centroX = viewport.clientWidth / 2;
+                centroY = viewport.clientHeight / 2;
+            }
+
+            const novoScale = Math.min(Math.max(scale * fator, 0.05), 50);
+            const razao = novoScale / scale;
+
+            translateX = centroX - (centroX - translateX) * razao;
+            translateY = centroY - (centroY - translateY) * razao;
+            scale = novoScale;
+
+            atualizarTransformacao();
+        }
+
+        function alternarModoWindow() {
+            modoWindowAtivo = !modoWindowAtivo;
+            const btn = document.getElementById('btn-window');
+            const viewport = document.getElementById('viewport');
+
+            btn.classList.toggle('active-tool', modoWindowAtivo);
+            if (viewport) {
+                viewport.classList.toggle('window-mode', modoWindowAtivo);
+            }
+        }
+
+        function configurarEventosViewport(viewport) {
+            viewport.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const rect = viewport.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                const fator = e.deltaY < 0 ? 1.15 : 0.85;
+                aplicarZoomFator(fator, mouseX, mouseY);
+            }, { passive: false });
+
+            viewport.addEventListener('mousedown', (e) => {
+                const rect = viewport.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                if (e.button === 0 && modoWindowAtivo) {
+                    isWindowZooming = true;
+                    startX = x;
+                    startY = y;
+                    const box = document.getElementById('selection-box');
+                    box.style.left = `${x}px`;
+                    box.style.top = `${y}px`;
+                    box.style.width = '0px';
+                    box.style.height = '0px';
+                    box.style.display = 'block';
+                    return;
+                }
+
+                if (e.button === 0 || e.button === 1) {
+                    e.preventDefault();
+                    isPanning = true;
+                    startX = x - translateX;
+                    startY = y - translateY;
+                }
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isPanning && !isWindowZooming) return;
+                const vp = document.getElementById('viewport');
+                if (!vp) return;
+
+                const rect = vp.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                if (isPanning) {
+                    translateX = x - startX;
+                    translateY = y - startY;
+                    atualizarTransformacao();
+                } else if (isWindowZooming) {
+                    const box = document.getElementById('selection-box');
+                    const left = Math.min(startX, x);
+                    const top = Math.min(startY, y);
+                    const width = Math.abs(x - startX);
+                    const height = Math.abs(y - startY);
+
+                    box.style.left = `${left}px`;
+                    box.style.top = `${top}px`;
+                    box.style.width = `${width}px`;
+                    box.style.height = `${height}px`;
+                }
+            });
+
+            window.addEventListener('mouseup', (e) => {
+                if (isPanning) {
+                    isPanning = false;
+                }
+
+                if (isWindowZooming) {
+                    isWindowZooming = false;
+                    const box = document.getElementById('selection-box');
+                    box.style.display = 'none';
+
+                    const vp = document.getElementById('viewport');
+                    if (!vp) return;
+
+                    const rect = vp.getBoundingClientRect();
+                    const endX = e.clientX - rect.left;
+                    const endY = e.clientY - rect.top;
+
+                    const selW = Math.abs(endX - startX);
+                    const selH = Math.abs(endY - startY);
+
+                    if (selW > 10 && selH > 10) {
+                        const selLeft = Math.min(startX, endX);
+                        const selTop = Math.min(startY, endY);
+
+                        const imgCenterX = (selLeft + selW / 2 - translateX) / scale;
+                        const imgCenterY = (selTop + selH / 2 - translateY) / scale;
+
+                        const fatorZoom = Math.min(vp.clientWidth / selW, vp.clientHeight / selH);
+                        scale = Math.min(Math.max(scale * fatorZoom, 0.05), 50);
+
+                        translateX = (vp.clientWidth / 2) - imgCenterX * scale;
+                        translateY = (vp.clientHeight / 2) - imgCenterY * scale;
+
+                        atualizarTransformacao();
+                    }
+
+                    if (modoWindowAtivo) alternarModoWindow();
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('btn-folder').addEventListener('click', abrirPasta);
+            document.getElementById('btn-refresh').addEventListener('click', atualizarManual);
+            document.getElementById('input-limite').addEventListener('change', alterarLimite);
+            document.getElementById('btn-prev-batch').addEventListener('click', voltarLote);
+            document.getElementById('btn-next-batch').addEventListener('click', avancarLote);
+            document.getElementById('btn-zoom-in').addEventListener('click', () => aplicarZoomFator(1.25));
+            document.getElementById('btn-zoom-out').addEventListener('click', () => aplicarZoomFator(0.8));
+            document.getElementById('btn-window').addEventListener('click', alternarModoWindow);
+            document.getElementById('btn-extent').addEventListener('click', zoomExtent);
+            document.getElementById('btn-tab-prev').addEventListener('click', irParaAbaAnterior);
+            document.getElementById('btn-tab-next').addEventListener('click', irParaProximaAba);
+        });
+    </script>
+</body>
+</html>
