@@ -1,4 +1,4 @@
-<img width="1920" height="1080" alt="preview" src="https://github.com/user-attachments/assets/1532cdc9-b933-448b-b489-27d4d2af18d4" />
+
 # StageViewer
 
 A lightweight desktop viewer built in Python (`pywebview`) designed to inspect and compare images generated across sequential transformation steps (`.jpg`, `.jpeg`, and `.png`).
